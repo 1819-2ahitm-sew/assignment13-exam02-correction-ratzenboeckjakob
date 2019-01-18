@@ -3,6 +3,7 @@ package at.htl.bank.business;
 import at.htl.bank.model.BankKonto;
 import at.htl.bank.model.GiroKonto;
 import at.htl.bank.model.SparKonto;
+import com.sun.istack.internal.localization.NullLocalizable;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -22,6 +23,7 @@ public class Main {
   static final String KONTENDATEI = "erstellung.csv";
   static final String BUCHUNGSDATEI = "buchungen.csv";
   static final String ERGEBNISDATEI = "ergebnis.csv";
+  static List<BankKonto> konten = new ArrayList<>();
 
   
   /**
@@ -31,7 +33,9 @@ public class Main {
    * @param args
    */
   public static void main(String[] args) {
-
+      erstelleKonten(KONTENDATEI);
+      fuehreBuchungenDurch(BUCHUNGSDATEI);
+      schreibeKontostandInDatei(ERGEBNISDATEI);
   }
 
   /**
@@ -45,8 +49,32 @@ public class Main {
    * @param datei KONTENDATEI
    */
   private static void erstelleKonten(String datei) {
+        String[] line;
+        String name;
+        double kontoStand;
+        String kontoTyp;
 
-        System.out.println("erstelleKonten noch nicht implementiert");
+        try(Scanner scanner = new Scanner(new FileReader(datei))) {
+            scanner.nextLine();
+            while(scanner.hasNextLine()) {
+                line = scanner.nextLine().split(";");
+                name = line[1];
+                kontoStand = Double.parseDouble(line[2]);
+                kontoTyp = line[0];
+
+                if(kontoTyp.equalsIgnoreCase("SparKonto")) {
+                    SparKonto sk = new SparKonto(name, kontoStand, ZINSSATZ);
+                    konten.add(sk);
+                } else if(kontoTyp.equalsIgnoreCase("GiroKonto")) {
+                    GiroKonto gk = new GiroKonto(name, kontoStand, GEBUEHR);
+                    konten.add(gk);
+                }
+            }
+        } catch (FileNotFoundException e) {
+            System.err.println(e.getMessage());
+        }
+
+      System.out.println("Erstellung der Konten beendet :)");
   }
 
   /**
@@ -64,7 +92,27 @@ public class Main {
    * @param datei BUCHUNGSDATEI
    */
   private static void fuehreBuchungenDurch(String datei) {
-        System.out.println("fuehreBuchungenDurch noch nicht implementiert");
+          String[] line;
+          BankKonto vonKonto;
+          BankKonto zuKonto;
+          double betrag;
+
+        try(Scanner scanner = new Scanner(new FileReader(datei))) {
+            scanner.nextLine();
+            while (scanner.hasNextLine()) {
+                line = scanner.nextLine().split(";");
+                vonKonto = findeKontoPerName(line[0]);
+                zuKonto = findeKontoPerName(line[1]);
+                betrag = Double.parseDouble(line[2]);
+
+                vonKonto.abheben(betrag);
+                zuKonto.einzahlen(betrag);
+            }
+        } catch (FileNotFoundException e) {
+            System.err.println(e.getMessage());
+        }
+
+      System.out.println("Buchung der Beträge beendet");
   }
 
   /**
@@ -87,7 +135,21 @@ public class Main {
    * @param datei ERGEBNISDATEI
    */
   private static void schreibeKontostandInDatei(String datei) {
-        System.out.println("schreibeKontostandInDatei noch nicht implementiert");
+        try(PrintWriter pw = new PrintWriter(new FileWriter(datei))) {
+            pw.println("name;kontotyp;kontostand");
+            for (BankKonto i:konten) {
+                if(i instanceof SparKonto) {
+                    ((SparKonto) i).zinsenAnrechnen();
+                    pw.println(i.getName() + ";SparKonto;" + i.getKontoStand());
+                } else if(i instanceof GiroKonto) {
+                    pw.println(i.getName() + ";GiroKonto;" + i.getKontoStand());
+                }
+            }
+        } catch (IOException e) {
+            System.err.println(e.getMessage());
+        }
+
+      System.out.println("Ausgabe in Ergebnisdatei beendet");
   }
 
   /**
@@ -100,7 +162,13 @@ public class Main {
    *         nicht gefunden wird
    */
   public static BankKonto findeKontoPerName(String name) {
-       return null;
+      for (int i = 0; i < konten.size(); i++) {
+          if (name.equals(konten.get(i).getName())) {
+              return konten.get(i);
+          }
+      }
+
+      return null;
   }
 
 }
